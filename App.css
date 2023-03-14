@@ -1,0 +1,67 @@
+.App {
+  text-align: center;
+}
+
+.mycontent {
+  margin-top: 500;
+  flex-direction: column;
+
+  margin-bottom: 3%;
+  
+ }
+
+ .button {
+  padding: 15px 25px;
+  font-size: 20px;
+  text-align: center;
+  cursor: pointer;
+  outline: none;
+  color: #fff;
+  background-color: #5a2e6f;
+  border: none;
+  border-radius: 15px;
+}
+
+.file-upload {
+  border: 1px solid #c01d1d;
+  display: inline-block;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.backbutton {
+  position: absolute;  
+ font-size: 20px;
+ text-align: center;
+ cursor: pointer;
+ outline: none;
+ color: #fff;
+ background-color: #5a2e6f;
+ border: none;
+ border-radius: 15px;
+ height: 40px;
+ width: 60px;
+ right: 20px;
+ bottom: 80px;
+}
+.header {
+  margin-bottom: 3%;
+  margin: 50;
+  top: 50;
+  left: 50;
+  width: 100%;
+  text-align: left;
+  border-bottom: 3;
+  border-bottom-width: 20;
+}
+
+.footer {
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  width: 100%;
+  text-align: left;
+  background-color: #5a2e6f;
+  color: white;
+}
+ 
