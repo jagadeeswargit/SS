@@ -1,34 +1,79 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <title>Ask Rx</title>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    <div id="root"></div>
+  </body>
+</html>
+
+
 import * as pdfjsLib from "pdfjs-dist";
 import React, { useState } from "react";
+import ProgressBar from "react-bootstrap/ProgressBar";
 import "./App.css";
 const BASE64_MARKER = ";base64,";
-
+let sliderTimer = null;
+let number = 1;
 function App() {
   const [isActive, setIsActive] = useState(true);
   const [response, setisResponse] = useState(false);
   const [value, setValue] = useState("");
   const [user, setUser] = useState("");
   const [pdfFileError, setPdfFileError] = useState("");
+  const [progressMsg, serPregressMsg] = useState("");
   const [pagesText, setTagesText] = useState([]);
+  const [showOtpTime, setShowOtpTime] = React.useState(1);
+  const [progressBar, setShowProgessbar] = React.useState(false);
 
   const handleChange = (event) => {
     setValue(event.target.value);
   };
 
-  const fetchData = async () => {
+  const postData = async () => {
     try {
+      startTimer();
+      setShowProgessbar(true);
+      serPregressMsg("Ask Rx is getting Trained on Prescription.");
       let url =
-        `https://mysemanticsearch.azurewebsites.net/api/httptrigger1?name=` +
-        value;
-
-      console.log({ url });
+        `https://mysemanticsearch.azurewebsites.net/api/httptrigger1?name=test&pdfData=` +
+        pagesText;
 
       const res = await fetch(url);
-      console.log({ res });
+      console.log(res.status);
+      if (res.status == 200) {
+        const json = await res.text();
+        setIsActive(false);
+      } else {
+        setPdfFileError("");
+      }
+      setShowProgessbar(false);
+    } catch (err) {
+      console.error("err", err);
+      setShowProgessbar(false);
+      clearInterval(sliderTimer);
+    }
+  };
+  const fetchData = async () => {
+    try {
+      startTimer();
+      setShowProgessbar(true);
+      serPregressMsg("Ask Rx is retrieving Answer");
+      let url =
+        `https://mysemanticsearch.azurewebsites.net/api/httptrigger1?name=` +
+        value +
+        `&pdfData=test`;
+      console.log({ url });
+      const res = await fetch(url);
       const json = await res.text();
-
+      setIsActive(false);
       setUser(json);
       setisResponse(true);
+      setShowProgessbar(false);
     } catch (err) {
       console.error("err", err);
     }
@@ -80,7 +125,6 @@ function App() {
   const pdfAsArray = (pdfAsArray) => {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
-    //pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.min.js";
 
     pdfjsLib.getDocument(pdfAsArray).promise.then(
       function (pdf) {
@@ -131,21 +175,40 @@ function App() {
       });
     });
   };
-
+  const startTimer = () => {
+    sliderTimer = setInterval(() => {
+      try {
+        let aa = number++;
+        console.log({ aa });
+        setShowOtpTime(aa);
+        if (aa == 100) {
+          clearInterval(sliderTimer);
+        }
+      } catch (error) {
+        console.log("error  - - - " + error);
+      }
+    }, 1000);
+  };
   return (
     <div>
       <div className="My header">
         <img style={{ margin: 10 }} src={require("./headerLogo.png")} />
       </div>
+      {progressBar ? (
+        <ProgressBar
+          style={{ width: "70%", marginLeft: 200 }}
+          animated
+          now={100}
+          label={progressMsg}
+        />
+      ) : null}
+      ;
       {isActive ? (
         <div className="App">
-          <div className="mycontent">
+          <div>
             <h3 style={{ marginBottom: 20 }}>PLEASE UPLOAD FILE</h3>
             <input type={"file"} onChange={handlePdfFileChange}></input>
             {pdfFileError && <div className="error-msg">{pdfFileError}</div>}
-            {pagesText.length > 0 && (
-              <div className="error-msg">{pagesText}</div>
-            )}
           </div>
 
           <div
@@ -155,8 +218,8 @@ function App() {
             }}
           >
             <button
-             onClick={() => setIsActive(false)}
-             
+              onClick={postData}
+              // onClick={startTimer}
               className="button"
               type="button"
               id="button"
@@ -171,6 +234,8 @@ function App() {
           <button onClick={onPressBack} className="backbutton">
             Back
           </button>
+
+          <h1 style={{ color: "#5a2e6f", marginBottom: 20 }}>sdfdsfdf</h1>
           <textarea
             style={{ fontSize: 20 }}
             name="postContent"
