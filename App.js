@@ -1,20 +1,6 @@
-<!DOCTYPE html>
-
-<html lang="en">
-  <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
-    <title>Ask Rx</title>
-  </head>
-  <body>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
-    <div id="root"></div>
-  </body>
-</html>
-
-
 import * as pdfjsLib from "pdfjs-dist";
 import React, { useState } from "react";
-import ProgressBar from "react-bootstrap/ProgressBar";
+import ProgressBar from "react-customizable-progressbar";
 import "./App.css";
 const BASE64_MARKER = ";base64,";
 let sliderTimer = null;
@@ -40,10 +26,12 @@ function App() {
       setShowProgessbar(true);
       serPregressMsg("Ask Rx is getting Trained on Prescription.");
       let url =
-        `https://mysemanticsearch.azurewebsites.net/api/httptrigger1?name=test&pdfData=` +
-        pagesText;
+        `https://myglobalssfunction.azurewebsites.net/api/httptrigger2`;
 
-      const res = await fetch(url);
+      const res = await fetch(url,{method:"post",body: JSON.stringify({
+        pdfContent: `test`,
+        myQuery:"test"
+      })});
       console.log(res.status);
       if (res.status == 200) {
         const json = await res.text();
@@ -60,15 +48,17 @@ function App() {
   };
   const fetchData = async () => {
     try {
+      number =1;
       startTimer();
       setShowProgessbar(true);
       serPregressMsg("Ask Rx is retrieving Answer");
       let url =
-        `https://mysemanticsearch.azurewebsites.net/api/httptrigger1?name=` +
-        value +
-        `&pdfData=test`;
+        `https://myglobalssfunction.azurewebsites.net/api/httptrigger2`;
       console.log({ url });
-      const res = await fetch(url);
+      const res = await fetch(url,{method:"post",body: JSON.stringify({
+        pdfContent: `test`,
+        myQuery: value
+      })});
       const json = await res.text();
       setIsActive(false);
       setUser(json);
@@ -78,13 +68,6 @@ function App() {
       console.error("err", err);
     }
   };
-  // const psfReader = () =>{
-  //   new PdfReader().parseFileItems("test/sample.pdf", (err, item) => {
-  //     if (err) console.error("error:", err);
-  //     else if (!item) console.warn("end of file");
-  //     else if (item.text) console.log(item.text);
-  //   });
-  // }
 
   const onPressBack = () => {
     setisResponse(false);
@@ -140,11 +123,12 @@ function App() {
         // Execute all the promises
         Promise.all(pagesPromises).then(function (pagesText) {
           setTagesText(pagesText);
+          console.log("My PDf content"+ pagesText);
           setPdfFileError("");
 
-          //for (var pageNum = 0; pageNum < pagesText.length; pageNum++) {
+          // for (var pageNum = 0; pageNum < pagesText.length; pageNum++) {
           //  console.log("___33333____________", pagesText[pageNum]);
-          //}
+          // }
         });
       },
       function (reason) {
@@ -175,19 +159,20 @@ function App() {
       });
     });
   };
+
   const startTimer = () => {
     sliderTimer = setInterval(() => {
       try {
-        let aa = number++;
-        console.log({ aa });
-        setShowOtpTime(aa);
-        if (aa == 100) {
+        number = number + 3;
+        setShowOtpTime(number);
+        if (number >= 100) {
           clearInterval(sliderTimer);
         }
       } catch (error) {
+        clearInterval(sliderTimer);
         console.log("error  - - - " + error);
       }
-    }, 1000);
+    }, 500);
   };
   return (
     <div>
@@ -195,16 +180,27 @@ function App() {
         <img style={{ margin: 10 }} src={require("./headerLogo.png")} />
       </div>
       {progressBar ? (
+        <div>
         <ProgressBar
-          style={{ width: "70%", marginLeft: 200 }}
-          animated
-          now={100}
-          label={progressMsg}
+          className="indicator"
+          progress={showOtpTime}
+          radius={50}
+          strokeWidth={10}
+          initialAnimation={true}
+          strokeColor="#5a2e6f"
         />
+        <h6
+          className="d-flex justify-content-center color"
+          style={{ color: "#5a2e6f" }}
+        >
+          {progressMsg}
+        </h6>
+      </div>
       ) : null}
       ;
       {isActive ? (
-        <div className="App">
+        <div className="d-flex justify-content-center">
+        <div className="borderStyle">
           <div>
             <h3 style={{ marginBottom: 20 }}>PLEASE UPLOAD FILE</h3>
             <input type={"file"} onChange={handlePdfFileChange}></input>
@@ -229,39 +225,68 @@ function App() {
             </button>
           </div>
         </div>
+        </div>
       ) : (
-        <div className="App">
-          <button onClick={onPressBack} className="backbutton">
-            Back
-          </button>
+        <div>
+          <div className="d-flex justify-content-center">
+            <div>
+              <button onClick={onPressBack} className="backbutton">
+                Back
+              </button>
 
-          <h1 style={{ color: "#5a2e6f", marginBottom: 20 }}>sdfdsfdf</h1>
-          <textarea
-            style={{ fontSize: 20 }}
-            name="postContent"
-            rows={3}
-            cols={60}
-            value={value}
-            onChange={handleChange}
-          />
-          <div
-            style={{
-              textAlign: "center",
-              marginTop: 20,
-            }}
-          >
-            <button
-              onClick={fetchData}
-              className="button"
-              type="button"
-              id="button"
-              name="Submit"
-            >
-              Submit
-            </button>
+              <h1 style={{ color: "#5a2e6f", marginBottom: 20 }}>
+                Ask Me Anything
+              </h1>
+              <textarea
+                style={{ fontSize: 20 }}
+                name="postContent"
+                rows={3}
+                cols={60}
+                value={value}
+                onChange={handleChange}
+              />
+              <div
+                style={{
+                  textAlign: "center",
+                  marginTop: 20,
+                }}
+              >
+                <button
+                  onClick={fetchData}
+                  className="button"
+                  type="button"
+                  id="button"
+                  name="Submit"
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
           </div>
-          {response ? <h3 style={{ marginTop: 20 }}>{user}</h3> : null}
-          {response ? <h4 style={{ marginTop: 20 }}>{user}</h4> : null}
+          {response ? (
+            <textarea
+              style={{
+                marginTop: 20,
+                marginLeft: 250,
+              }}
+              rows={3}
+              cols={100}
+            >
+              {user}
+            </textarea>
+          ) : null}
+          {response ? (
+            <textarea
+              style={{
+                marginTop: 20,
+                marginLeft: 250,
+              }}
+              rows={3}
+              cols={100}
+            >
+              {user}
+            </textarea>
+          ) : null}
         </div>
       )}
       <div
