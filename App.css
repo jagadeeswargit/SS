@@ -65,3 +65,14 @@
   color: white;
 }
  
+.borderStyle   {
+  border-style: solid;
+  border-color:  #5a2e6f;
+  border-width: thin;
+  width: fit-content;
+  padding: 50px;
+  border-radius: 10px;
+}
+.indicator {
+  margin: 0 auto;  
+}
