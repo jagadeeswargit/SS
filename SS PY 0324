@@ -1,0 +1,207 @@
+import logging
+
+import azure.functions as func
+import openai
+from tqdm.auto import tqdm
+import pinecone
+import datetime
+import json
+from time import sleep
+
+
+def main(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a request.')
+    openai.api_key = "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"
+    data = req.get_json()
+    query = data['myQuery']   
+    pdfData = data['pdfContent']
+    #logging.info('My PDF data is'+req.get_json())
+    myResponse,id,responseText = semanticSearchQA(query,pdfData)
+    #return func.HttpResponse(f"PDF data is : {data['pdfContent']}.")
+    return func.HttpResponse(f"{myResponse} DDDDDD {responseText}")
+
+def complete(prompt):
+    # query text-davinci-003
+    res = openai.Completion.create(
+        engine='text-davinci-003',
+        prompt=prompt,
+        temperature=0,
+        max_tokens=400,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=None
+    )
+
+    # myResponse = res['choices'][0]['text'].strip()
+    # id = res['choices'][0]['id'].strip()
+    return res['choices'][0]['text'].strip()
+
+def retrieve(query,embed_model,index):
+    limit = 3750
+    res = openai.Embedding.create(
+        input=[query],
+        engine=embed_model
+    )
+	
+	# retrieve from Pinecone
+    xq = res['data'][0]['embedding']
+
+    # get relevant contexts
+    res = index.query(xq, top_k=3, include_metadata=True)
+    print(f"response pre: {res['matches'][0]['id']}")
+    contexts = [
+        x['metadata']['text'] for x in res['matches']
+    ]
+
+
+    responseId = res['matches'][0]['id']
+    responseText = res['matches'][0]['metadata']['text']
+    #
+    # esponseId = res['matches'][0]['text']
+
+    #print(myIds)
+
+    # build our prompt with the retrieved contexts included
+    prompt_start = (
+        "Reply to the question based on the text below, and if the answer is not clear based on the text, say 'Sorry I couldn’t find answer to your question, please consult with your doctor'.\n\n"+
+        "Context:\n"
+    )
+    prompt_end = (
+        f"\n\nQuestion: {query}\nAnswer:"
+    )
+    # append contexts until hitting limit
+    contextIds = []
+    for i in range(1, len(contexts)):
+        if len("\n\n---\n\n".join(contexts[:i])) >= limit:
+            prompt = (
+                prompt_start +
+                "\n\n---\n\n".join(contexts[:i-1]) +
+                prompt_end
+            )
+            #contextIds.append(myIds[i])
+            break
+        elif i == len(contexts)-1:
+            prompt = (
+                prompt_start +
+                "\n\n---\n\n".join(contexts) +
+                prompt_end
+            )
+            #contextIds.append(myIds[i])
+    #print(f"responseId: {responseId}, prompt : {prompt}")        
+    return prompt,responseId,responseText
+	
+def semanticSearchQA(query,pdfData):   
+    embed_model = "text-embedding-ada-002"  
+    res = openai.Embedding.create(
+        input=[
+            "Hi",
+            "Hello"
+        ], engine=embed_model
+    )
+    logging.info('My PDF data is'+pdfData)
+    
+    myPdfContent = pdfData.split(".")
+
+    i = 0
+    for x in myPdfContent:
+        x = x.replace("\n","")
+        myPdfContent[i] = x
+        i = i + 1
+    
+    data = []    
+    id = 20520230624
+    t = 0
+    for text in myPdfContent:
+        id = id + 1
+        if t<=2:
+            data.append({
+                    'text': text,
+                    'id': str(id)
+                })
+        t=t+1
+    # data = []
+    # data.append({
+    #     'text': "Paracetamol (Panadol, Calpol, Alvedon) is an analgesic and antipyretic drug that is used to temporarily relieve mild-to-moderate pain and fever. It is commonly included as an ingredient in cold and flu medications and is also used on its own.Paracetamol is exactly the same drug as acetaminophen (Tylenol). Paracetamol is the drug's name assigned using the International Nonproprietary Name (INN) generic name system. Paracetamol is the name used for the drug in places such as Europe, Australia, New Zealand and India. Acetaminophen is the generic name assigned using the United States Adopted Names (USAN) system. Acetaminophen is the name used in countries such as the US, Canada and Japan. Usually the INN and USAN generic names for a drug are the same and don't differ between countries.It is not clear exactly how paracetamol works. However, it is thought to work by blocking chemical messengers in the brain that let us know when we're in pain and by affecting the chemical messengers that regulate our body temperature. The evidence suggests that paracetamol inhibits the production of prostaglandins, which are made by the body to deal with illness and injury. It's also thought to act on the serotonergic, opioid, nitric oxide and cannabinoid pathways.Paracetamol was first made in 1878, but only became more widely used in the 1950s. Today paracetamol is one of the most widely used painkillers in the world. Branded and generic versions of this drug are available.The color of Paracetamol is white.",
+    #     'id': "020520230624"
+    # })
+
+    # data.append({
+    #     'text': "Paracetamol is a common painkiller used to treat aches and pain. It can also be used to reduce a high temperature.It's available to buy from a pharmacy or shop but you may be able to get it on prescription if you have long-term pain. It comes as tablets, capsules, syrup, powder that you mix with water, or suppositories.Paracetamol is also available combined with other painkillers and anti-sickness medicines. It is used in a wide range of cold and flu remedies.For under-16s, find out more about paracetamol for children.Key factsParacetamol can take up to an hour to work.The usual dose of paracetamol is one or two 500mg tablets at a time up to 4 times in 24 hours with a maximum of 8 tablets in 24 hours.Do not take paracetamol with other medicines containing paracetamol because there is a risk of overdose.Paracetamol is safe to take during pregnancy and while breastfeeding, at recommended doses.It may not be safe for you to drink alcohol with paracetamol if you have certain health conditions, such as liver problems. Check the leaflet that comes with your medicine.",
+    #     'id': "020520230625"
+    # })
+    
+
+    new_data = []
+
+    window = 20  # number of sentences to combine
+
+    for i in tqdm(range(0, len(data))):
+        #i_end = min(len(data)-1, i+window)
+        text = ''.join(data[i]['text'])
+        # create the new merged dataset
+        new_data.append({
+            'text': text,
+            'id': data[i]['id']
+        })
+        
+
+    index_name = 'openai-jd-paracetamol'
+
+    # initialize connection to pinecone (get API key at app.pinecone.io)
+    pinecone.init(
+        api_key="794cb85f-7864-4d0c-a544-1c50a2eb91b7",
+        environment="us-east1-gcp"  # may be different, check at app.pinecone.io
+    )
+
+    print(pinecone.list_indexes())
+
+    # check if index already exists (it shouldn't if this is first time)
+    if index_name not in pinecone.list_indexes():
+        # if does not exist, create index
+        pinecone.create_index(
+            index_name,
+            dimension=len(res['data'][0]['embedding']),
+            metric='cosine',
+            metadata_config={'indexed': ['id']}
+        )
+    # connect to index
+    index = pinecone.Index(index_name)
+    # view index stats
+    index.describe_index_stats()
+
+
+    batch_size = 100  # how many embeddings we create and insert at once
+
+    for i in tqdm(range(0, len(new_data), batch_size)):
+        # find end of batch
+        i_end = min(len(new_data), i+batch_size)
+        meta_batch = new_data[i:i_end]
+        # get ids
+        ids_batch = [x['id'] for x in meta_batch]
+        # get texts to encode
+        texts = [x['text'] for x in meta_batch]
+        # create embeddings (try-except added to avoid RateLimitError)
+        try:
+            res = openai.Embedding.create(input=texts, engine=embed_model)
+        except:
+            done = False
+            while not done:
+                sleep(5)
+                try:
+                    res = openai.Embedding.create(input=texts, engine=embed_model)
+                    done = True
+                except:
+                    pass
+        embeds = [record['embedding'] for record in res['data']]
+        # cleanup metadata
+        meta_batch = [{
+            'text': x['text'],
+            'id': x['id']
+        } for x in meta_batch]
+        to_upsert = list(zip(ids_batch, embeds, meta_batch))
+        # upsert to Pinecone
+        index.upsert(vectors=to_upsert)
+    
+    query_with_contexts,responseId,responseText = retrieve(query,embed_model,index)
+    return complete(query_with_contexts),responseId,responseText
