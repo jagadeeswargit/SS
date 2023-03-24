@@ -11,7 +11,7 @@ from time import sleep
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
-    openai.api_key = "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"
+    openai.api_key = "abcdsk-XqvyaRwBxV1GkXT1SDhmT3BlbkFJ3U1TAMKBbBrNpouAabcd"
     data = req.get_json()
     query = data['myQuery']   
     pdfData = data['pdfContent']
